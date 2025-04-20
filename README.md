@@ -9,8 +9,11 @@ The package contains 3 files:
 3. modern_states.py, which can read not only old text format, but also reads from Excel files, and writes the two-valued states in an Excel file and a report txt file. It also generates a visualisation of the hypergraph.
 
 To use the package, you need to have Python 3 installed and either use states.py or modern_states.py. The commends are as follows:
-python states.py [input.txt] [optional: output file name]
+
+  python states.py [input.txt] [optional: output file name]
+
 or
-python modern_states.py [input.txt or input.xlsx]
+
+  python modern_states.py [input.txt or input.xlsx]
 
 For the required formats of the input files, see the files in the folder Examples.
