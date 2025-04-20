@@ -1,0 +1,12 @@
+The Specker bug
+13 atoms
+7 blocks
+ 0 proper subsets of blocks
+ 3   1  2  3
+ 3   3  4  5
+ 3   5  6  7
+ 3   7  8  9
+ 3   9 10 11
+ 3  11 12  1
+ 3  10 13  4
+ 
