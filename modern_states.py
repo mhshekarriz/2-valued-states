@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import random
 import matplotlib.colors as mc
+import distinctipy
 
 
 
@@ -269,9 +270,13 @@ def visualize_hypergraph_post_process_constrained(num_vertices: int, hyperedges:
                     new_pos[v_mid] = p1 + t_constrained * line_vec
 
     # Use a qualitative colormap
+    # num_hyperedges = len(hyperedges)
+    # cmap = plt.cm.get_cmap('tab20', num_hyperedges)
+    # colors = [cmap(i % 20) for i in range(num_hyperedges)] # Cycle if more than 20
+    # random.shuffle(colors)
+    # Generate maximally distinct colors using distinctipy
     num_hyperedges = len(hyperedges)
-    cmap = plt.cm.get_cmap('tab20', num_hyperedges)
-    colors = [cmap(i % 20) for i in range(num_hyperedges)] # Cycle if more than 20
+    colors = distinctipy.get_colors(num_hyperedges)
     random.shuffle(colors)
 
     plt.figure(figsize=(10, 8))
