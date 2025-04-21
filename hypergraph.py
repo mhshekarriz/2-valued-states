@@ -191,7 +191,7 @@ class Hypergraph:
             print("No AND triples found.")
 
 
-# Example usage (you can keep this or remove it, the states.py will use the class)
+# Example usage (you can keep this or remove it, the states.py or modern_states.py will use the class)
 # if __name__ == "__main__":
 #     # hyperedges = [
 #     #     [1, 2, 3], [1, 4, 3], [2, 4, 5]
