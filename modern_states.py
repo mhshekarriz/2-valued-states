@@ -6,6 +6,9 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
 import random
+import matplotlib.colors as mc
+
+
 
 def parse_hypergraph(filename):
     if filename.endswith(".txt"):
@@ -80,13 +83,13 @@ def write_reports(filename, hypergraph_name, num_vertices, hyperedges, states, s
         else:
             f.write("No AND triples found.\n")
 
-def visualize_hypergraph_lines_through_vertices(num_vertices: int, hyperedges: List[List[int]], filename_prefix: str):
-    """Visualizes hyperedges as lines connecting their vertices."""
+def visualize_hypergraph_lines_through_vertices(num_vertices: int, hyperedges: List[List[int]], filename_prefix: str, layout_algorithm=nx.spring_layout):
+    """Visualizes hyperedges as lines connecting their vertices with a specified layout."""
     G = nx.Graph()
     for v in range(1, num_vertices + 1):
         G.add_node(v)
 
-    pos = nx.spring_layout(G, seed=42)  # Layout for vertex positions
+    pos = layout_algorithm(G)  # Use the specified layout algorithm without seed
 
     plt.figure(figsize=(10, 8))
     nx.draw_networkx_nodes(G, pos, node_color='lightblue', node_size=500)
@@ -106,10 +109,191 @@ def visualize_hypergraph_lines_through_vertices(num_vertices: int, hyperedges: L
             u = he[0]
             plt.scatter(pos[u][0], pos[u][1], color=colors[i], alpha=0.7, s=100)
 
-    plt.title("Hypergraph Visualization (Lines Through Vertices)")
+    plt.title(f"Hypergraph Visualization (Lines Through Vertices - {layout_algorithm.__name__})")
     plt.axis('off')
-    plt.savefig(f"{filename_prefix}_hypergraph_lines_through.png")
+    plt.savefig(f"{filename_prefix}_hypergraph_lines_through_{layout_algorithm.__name__}.png")
     plt.show()
+
+def visualize_hypergraph_all_pairs(num_vertices: int, hyperedges: List[List[int]], filename_prefix: str, layout_algorithm=nx.spring_layout):
+    """Visualizes hyperedges by drawing lines between all pairs of vertices within them."""
+    G = nx.Graph()
+    for v in range(1, num_vertices + 1):
+        G.add_node(v)
+
+    pos = layout_algorithm(G)
+
+    plt.figure(figsize=(10, 8))
+    nx.draw_networkx_nodes(G, pos, node_color='lightblue', node_size=500)
+    nx.draw_networkx_labels(G, pos)
+
+    colors = [plt.cm.viridis(i/len(hyperedges)) for i in range(len(hyperedges))]
+    random.shuffle(colors)
+
+    for i, he in enumerate(hyperedges):
+        if len(he) >= 2:
+            for j in range(len(he)):
+                for k in range(j + 1, len(he)):
+                    u, v = he[j], he[k]
+                    x = [pos[u][0], pos[v][0]]
+                    y = [pos[u][1], pos[v][1]]
+                    plt.plot(x, y, color=colors[i], alpha=0.3, linewidth=2)  # Lower alpha for transparency
+        elif len(he) == 1:
+            u = he[0]
+            plt.scatter(pos[u][0], pos[u][1], color=colors[i], alpha=0.5, s=100)
+
+    plt.title(f"Hypergraph Visualization (All Pairs - {layout_algorithm.__name__})")
+    plt.axis('off')
+    plt.savefig(f"{filename_prefix}_hypergraph_all_pairs_{layout_algorithm.__name__}.png")
+    plt.show()
+
+def visualize_hypergraph_weighted_layout(num_vertices: int, hyperedges: List[List[int]], filename_prefix: str, layout_algorithm=nx.spring_layout):
+    """Visualizes hyperedges by using a weighted graph for layout, where co-hyperedge vertices are connected."""
+    G = nx.Graph()
+    for v in range(1, num_vertices + 1):
+        G.add_node(v)
+
+    # Create weighted edges for co-occurring vertices
+    for he in hyperedges:
+        for i in range(len(he)):
+            for j in range(i + 1, len(he)):
+                u, v = he[i], he[j]
+                if G.has_edge(u, v):
+                    G[u][v]['weight'] += 1
+                else:
+                    G.add_edge(u, v, weight=1)
+
+    pos = layout_algorithm(G, weight='weight')  # Use weight in layout, remove seed
+
+    plt.figure(figsize=(10, 8))
+    nx.draw_networkx_nodes(G, pos, node_color='lightblue', node_size=500)
+    nx.draw_networkx_labels(G, pos)
+
+    colors = [plt.cm.viridis(i/len(hyperedges)) for i in range(len(hyperedges))]
+    random.shuffle(colors)
+
+    for i, he in enumerate(hyperedges):
+        if len(he) >= 2:
+            for j in range(len(he)):
+                for k in range(j + 1, len(he)):
+                    u, v = he[j], he[k]
+                    x = [pos[u][0], pos[v][0]]
+                    y = [pos[u][1], pos[v][1]]
+                    plt.plot(x, y, color=colors[i], alpha=0.3, linewidth=2)
+        elif len(he) == 1:
+            u = he[0]
+            plt.scatter(pos[u][0], pos[u][1], color=colors[i], alpha=0.5, s=100)
+
+    plt.title(f"Hypergraph Visualization (Weighted Layout - {layout_algorithm.__name__})")
+    plt.axis('off')
+    plt.savefig(f"{filename_prefix}_hypergraph_weighted_layout_{layout_algorithm.__name__}.png")
+    plt.show()
+
+def visualize_hypergraph_post_process(num_vertices: int, hyperedges: List[List[int]], filename_prefix: str, layout_algorithm=nx.spring_layout, nudge_factor=0.1):
+    """Visualizes hyperedges with post-processed vertex positions to encourage collinearity."""
+    G = nx.Graph()
+    for v in range(1, num_vertices + 1):
+        G.add_node(v)
+
+    pos = layout_algorithm(G)
+
+    # Post-process vertex positions
+    new_pos = pos.copy()
+    for he in hyperedges:
+        if len(he) >= 3:
+            v1, vk = he[0], he[-1]
+            p1 = np.array(pos[v1])
+            pk = np.array(pos[vk])
+            line_vec = pk - p1
+            line_len_sq = np.dot(line_vec, line_vec)
+
+            if line_len_sq > 0:
+                for i in range(1, len(he) - 1):
+                    v_mid = he[i]
+                    pmid = np.array(pos[v_mid])
+                    vec_p1_pmid = pmid - p1
+                    t = np.dot(vec_p1_pmid, line_vec) / line_len_sq
+                    projection = p1 + t * line_vec
+
+                    # Nudge towards the projection
+                    displacement = projection - pmid
+                    new_pos[v_mid] = pmid + nudge_factor * displacement
+
+    plt.figure(figsize=(10, 8))
+    nx.draw_networkx_nodes(G, new_pos, node_color='lightblue', node_size=500)
+    nx.draw_networkx_labels(G, new_pos)
+
+    colors = [plt.cm.viridis(i/len(hyperedges)) for i in range(len(hyperedges))]
+    random.shuffle(colors)
+
+    for i, he in enumerate(hyperedges):
+        if len(he) >= 2:
+            for j in range(len(he) - 1):
+                u, v = he[j], he[j + 1]
+                x = [new_pos[u][0], new_pos[v][0]]
+                y = [new_pos[u][1], new_pos[v][1]]
+                plt.plot(x, y, color=colors[i], alpha=0.7, linewidth=2)
+        elif len(he) == 1:
+            u = he[0]
+            plt.scatter(new_pos[u][0], new_pos[u][1], color=colors[i], alpha=0.7, s=100)
+
+    plt.title(f"Hypergraph Visualization (Post-Processed - {layout_algorithm.__name__})")
+    plt.axis('off')
+    plt.savefig(f"{filename_prefix}_hypergraph_post_process_{layout_algorithm.__name__}.png")
+    plt.show()
+
+def visualize_hypergraph_post_process_constrained(num_vertices: int, hyperedges: List[List[int]], filename_prefix: str, layout_algorithm=nx.spring_layout):
+    """Visualizes hyperedges with constrained post-processing and a qualitative colormap."""
+    G = nx.Graph()
+    for v in range(1, num_vertices + 1):
+        G.add_node(v)
+
+    pos = layout_algorithm(G)
+
+    # Post-process vertex positions (constrained to the line)
+    new_pos = pos.copy()
+    for he in hyperedges:
+        if len(he) >= 3:
+            v1, vk = he[0], he[-1]
+            p1 = np.array(pos[v1])
+            pk = np.array(pos[vk])
+            line_vec = pk - p1
+            line_len_sq = np.dot(line_vec, line_vec)
+
+            if line_len_sq > 0:
+                for i in range(1, len(he) - 1):
+                    v_mid = he[i]
+                    pmid = np.array(pos[v_mid])
+                    vec_p1_pmid = pmid - p1
+                    t = np.dot(vec_p1_pmid, line_vec) / line_len_sq
+                    t_constrained = max(0, min(1, t))
+                    new_pos[v_mid] = p1 + t_constrained * line_vec
+
+    # Use a qualitative colormap
+    num_hyperedges = len(hyperedges)
+    cmap = plt.cm.get_cmap('tab20', num_hyperedges)
+    colors = [cmap(i % 20) for i in range(num_hyperedges)] # Cycle if more than 20
+    random.shuffle(colors)
+
+    plt.figure(figsize=(10, 8))
+    nx.draw_networkx_nodes(G, new_pos, node_color='lightblue', node_size=500)
+    nx.draw_networkx_labels(G, new_pos)
+
+    for i, he in enumerate(hyperedges):
+        if len(he) >= 2:
+            for j in range(len(he) - 1):
+                u, v = he[j], he[j + 1]
+                x = [new_pos[u][0], new_pos[v][0]]
+                y = [new_pos[u][1], new_pos[v][1]]
+                plt.plot(x, y, color=colors[i], alpha=0.7, linewidth=2)
+        elif len(he) == 1:
+            u = he[0]
+            plt.scatter(new_pos[u][0], new_pos[u][1], color=colors[i], alpha=0.7, s=100)
+
+    plt.title(f"Hypergraph Visualization (Constrained Post-Process - {layout_algorithm.__name__})")
+    plt.axis('off')
+    plt.savefig(f"{filename_prefix}_hypergraph_post_process_constrained_{layout_algorithm.__name__}.png")
+    plt.show()
+
 
 def main(input_file):
     hypergraph_name, num_atoms, hyperedges = parse_hypergraph(input_file)
@@ -135,8 +319,17 @@ def main(input_file):
     write_reports(output_reports_file, hypergraph_name, num_atoms, hyperedges, states, separable, non_unital, tifs_pairs, tits_pairs, not_pairs, and_triples)
     print(f"Hypergraph reports saved to: {output_reports_file}")
 
-    # Call the line-through-vertices visualization function
-    visualize_hypergraph_lines_through_vertices(num_atoms, hyperedges, output_prefix)
+    # Call the single-segment visualization function
+    #visualize_hypergraph_lines_through_vertices(num_atoms, hyperedges, output_prefix, layout_algorithm=nx.kamada_kawai_layout)
+    #visualize_hypergraph_all_pairs(num_atoms, hyperedges, output_prefix, layout_algorithm=nx.kamada_kawai_layout)
+    #visualize_hypergraph_weighted_layout(num_atoms, hyperedges, output_prefix, layout_algorithm=nx.kamada_kawai_layout)
+    #visualize_hypergraph_post_process(num_atoms, hyperedges, output_prefix, layout_algorithm=nx.kamada_kawai_layout, nudge_factor=0.05)
+    visualize_hypergraph_post_process_constrained(num_atoms, hyperedges, output_prefix, layout_algorithm=nx.kamada_kawai_layout)
+
+
+
+
+
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
